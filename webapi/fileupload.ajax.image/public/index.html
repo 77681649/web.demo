@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>HTML5 AJax 单张图片上传</title>
+  <style>
+    .file-upload {}
+
+    .btn-upload {
+      display: block;
+
+      padding: 0 10px;
+      width: 80px;
+      height: 36px;
+      background: #288fd0;
+      color: white;
+      line-height: 36px;
+      text-align: center;
+    }
+
+    .fu-file {
+      display: none;
+    }
+
+    .preview-image-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .preview-box {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      height: 100%;
+      width: 100%;
+
+      margin: 20px 0;
+      height: 220px;
+      border: dotted 2px #aaa;
+      border-radius: 4px;
+      color: #a4a4a4;
+    }
+
+    .preview-img {
+      flex: 1;
+      width: 99%;
+      height: 99%;
+    }
+
+    .flex-full {
+      flex: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <div class="preview-box" id="preview-box">
+      <div class="flex-full" id="placeholder">点击上传或将图片拖动到此处上传</div>
+      <div class="flex-full preview-image-container" id="preview-image-container" style="display:none"></div>
+      <input class="fu-file" type="file" id="file-upload" accept="image/*" />
+    </div>
+    <div>
+      <button class="btn-upload" id="btn-upload">上传图片</button>
+    </div>
+  </div>
+</body>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let $previewBox = document.querySelector('#preview-box')
+    let $previewImageContainer = document.querySelector('#preview-image-container')
+    let $fileUpload = document.querySelector('#file-upload')
+    let $placeholder = document.querySelector('#placeholder')
+    let $uploadButton = document.querySelector('#btn-upload')
+    let files = []
+
+    initPreviewBox()
+    initFileUpload()
+    initUploadButton()
+
+    function initPreviewBox() {
+      let $el = $previewBox
+
+      $el.addEventListener('click', openFileDialog)
+      bindDragAndDrop($el)
+    }
+
+    function bindDragAndDrop($el) {
+      function onDragEnter(e) {
+        e.stopPropagation()
+        e.preventDefault()
+      }
+
+      function onDrop(e) {
+        let files = e.dataTransfer.files
+
+        if (files && files.length) {
+          previewFile(files[0])
+          addFile(files[0])
+        }
+
+        e.stopPropagation()
+        e.preventDefault()
+      }
+
+      function onDragOver(e) {
+        e.stopPropagation()
+        e.preventDefault()
+      }
+
+      $el.addEventListener('dragenter', onDragEnter)
+      $el.addEventListener('drop', onDrop)
+      $el.addEventListener('dragover', onDragOver)
+    }
+
+    function openFileDialog() {
+      $fileUpload.click()
+    }
+
+    function initFileUpload() {
+      function onFileChange() {
+        let files = this.files
+
+        previewFile(files[0])
+        addFile(files[0])
+      }
+
+      $fileUpload.addEventListener('change', onFileChange)
+    }
+
+    function previewFile(file) {
+      readFileAsDataURL(file).then(dataURL => {
+        appendImageToBox(createImage(dataURL))
+      })
+    }
+
+    function createImage(dataURL) {
+      let img = document.createElement('IMG')
+
+      img.className = "preview-img"
+      img.src = dataURL
+
+      return img
+    }
+
+    function appendImageToBox($img) {
+      $placeholder.style.display = "none"
+      $previewImageContainer.style.display = "block"
+
+      if ($previewImageContainer.firstChild) {
+        $previewImageContainer.removeChild($previewImageContainer.firstChild)
+      }
+      $previewImageContainer.appendChild($img)
+    }
+
+    function readFileAsDataURL(file) {
+      let fileReader = new FileReader()
+
+      return new Promise((resolve, reject) => {
+        fileReader.onload = function () {
+          resolve(this.result)
+        }
+        fileReader.onerror = function (err) {
+          reject(err)
+        }
+        fileReader.readAsDataURL(file)
+      })
+    }
+
+    function addFile(file) {
+      files.push(file)
+    }
+
+    function initUploadButton() {
+      let $el = $uploadButton
+
+      function onClick() {
+        uploadImage(files[0])
+      }
+
+      $el.addEventListener('click', onClick)
+    }
+
+    function dateURLToBlob(dataURL) {
+      let tokens = dataURL.split(',')
+      let mine = arr[0].match(/:(.*?);/)[0]
+      let decodeStr = atob(arr[1])
+      let decodeStrLength = decodeStr.length
+      let buffers = new Uint8Array(decodeStrLength)
+
+      for (let i = 0; i < decodeStrLength; i++) {
+        buffers[i] = decodeStr.charCodeAt(i)
+      }
+
+      return new Blob([buffers], { type: mine })
+    }
+
+    function uploadImage(file) {
+      let formData = new FormData()
+      formData.append('username', '')
+      formData.append('file', file, file.name)
+      formData.append('password', '12345')
+
+      ajax({ url: '/image/upload', method: 'POST', data: formData })
+        .then(data=>{
+          data = JSON.parse(data)
+
+          if(data.errCode == 0){
+            alert('上传成功')
+          }else{
+            alert('上传失败')
+          }
+        })
+    }
+
+    function ajax(options = {}) {
+      let method = options.method || 'GET'
+      let url = options.url || window.location.href.path
+      let async = options.async === false ? false : true
+      let data = options.data || null
+
+      return new Promise((resolve, reject) => {
+        let request = new XMLHttpRequest()
+
+        request.onreadystatechange = function () {
+          if (request.status === 200) {
+            if (request.readyState === 4) {
+              resolve(request.response)
+            }
+          }
+        }
+
+        request.onerror = function (err) {
+          reject(err)
+        }
+
+        request.onabort = function () {
+          reject(new Error('Request Abort'))
+        }
+
+        request.open(method, url, async)
+        request.send(data)
+      })
+    }
+  })
+</script>
+
+</html>
